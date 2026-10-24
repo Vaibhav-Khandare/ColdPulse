@@ -2,104 +2,21 @@
 
 **AI-Powered Cold Chain Monitoring and Predictive Temperature Excursion Early Warning System**
 
+---
+
 ## Overview
 
-ColdPulse is a Django-based project designed to support cold-chain monitoring, temperature excursion detection, and predictive early warning.
+ColdPulse is a Django-based web application that monitors cold-chain temperature conditions in real time and provides **predictive early warnings** before a temperature excursion occurs.
 
-## Technology Stack
+The system consists of two cooperating parts:
 
-- Python
-- Django
-- HTML, CSS, and JavaScript
-- SQLite for local development
-- Pandas, NumPy, and scikit-learn when required for data analysis and machine learning
+1. **A Django backend** that ingests telemetry, stores readings in a database, and broadcasts them to connected web clients via WebSocket.
+2. **A standalone Tkinter simulator** that runs a physics-based "digital twin" of a cold chamber, uses a trained LightGBM model to predict future temperatures, and pushes readings + predictions to the Django backend over HTTP.
 
-## Project Structure
+Together, they deliver an end-to-end pipeline: **Simulator → Django API → SQLite → WebSocket → Live Web Dashboard**.
 
-```text
-ColdPulse/
-├── config/
-├── monitoring/
-├── prediction/
-├── templates/
-├── static/
-├── datasets/
-├── manage.py
-├── requirements.txt
-├── .gitignore
-└── README.md
-```
+> ⚠️ This is an academic software development project. Predictions and alerts must be validated before any real-world cold-chain safety decisions are made.
 
-## Prerequisites
+---
 
-- Python 3
-- Git
-- A GitHub account
-
-## Setup
-
-### 1. Clone the repository
-
-```bash
-git clone <https://github.com/Vaibhav-Khandare/ColdPulse.git>
-cd ColdPulse
-```
-
-### 2. Create a virtual environment
-
-Windows:
-
-```powershell
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-```
-
-macOS/Linux:
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
-
-### 3. Install dependencies
-
-```bash
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-```
-
-### 4. Apply database migrations
-
-```bash
-python manage.py migrate
-```
-
-### 5. Run the development server
-
-```bash
-python manage.py runserver
-```
-
-Open http://127.0.0.1:8000/monitoring/ in your browser.
-
-## Applications
-
-- **Monitoring:** Temperature readings, storage units, excursion records, and alerts.
-- **Prediction:** Temperature excursion prediction and early-warning logic.
-
-## Development
-
-Create and commit migrations whenever you modify Django models:
-
-```bash
-python manage.py makemigrations
-python manage.py migrate
-```
-
-## Team Contributions
-
-Contributors should create feature branches, test their changes, and open pull requests for review.
-
-## Disclaimer
-
-This is a software development project. Its predictions and alerts must be validated before any real-world cold-chain safety decisions are based on them.
+## Architecture
