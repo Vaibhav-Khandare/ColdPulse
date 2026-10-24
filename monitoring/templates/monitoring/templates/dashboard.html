@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ColdPulse — Live Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
+            padding: 30px;
+            margin: 0;
+        }
+        h1 { color: #38bdf8; margin-bottom: 5px; }
+        .subtitle { color: #94a3b8; margin-bottom: 30px; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+        }
+        .card {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 25px;
+            border-left: 4px solid #38bdf8;
+        }
+        .label { color: #94a3b8; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
+        .value { font-size: 34px; font-weight: bold; color: #38bdf8; margin-top: 6px; }
+        .risk-SAFE   { color: #10b981; }
+        .risk-MEDIUM { color: #f59e0b; }
+        .risk-HIGH   { color: #ef4444; }
+        .card.risk-high   { border-left-color: #ef4444; }
+        .card.risk-medium { border-left-color: #f59e0b; }
+        .card.risk-safe   { border-left-color: #10b981; }
+        #status-banner {
+            display: inline-block;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-weight: bold;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+        .banner-safe   { background: #064e3b; color: #34d399; }
+        .banner-medium { background: #451a03; color: #fbbf24; }
+        .banner-high   { background: #450a0a; color: #f87171; }
+        .banner-waiting { background: #1e293b; color: #94a3b8; }
+        .meta { color: #64748b; font-size: 12px; margin-top: 25px; }
+    </style>
+</head>
+<body>
+    <h1>ColdPulse Live Dashboard</h1>
+    <div class="subtitle">Real-time cold chain monitoring · ROOM_01</div>
+
+    <div id="status-banner" class="banner-waiting">Waiting for simulator data...</div>
+
+    <div class="grid">
+        <div class="card" id="temp-card">
+            <div class="label">Internal Temperature</div>
+            <div class="value" id="temp">--</div>
+        </div>
+        <div class="card" id="pred-card">
+            <div class="label">Predicted (30 min)</div>
+            <div class="value" id="pred">--</div>
+        </div>
+        <div class="card" id="risk-card">
+            <div class="label">Risk Level</div>
+            <div class="value" id="risk">--</div>
+        </div>
+        <div class="card">
+            <div class="label">Power</div>
+            <div class="value" id="power">--</div>
+        </div>
+        <div class="card">
+            <div class="label">Door</div>
+            <div class="value" id="door">--</div>
+        </div>
+        <div class="card">
+            <div class="label">Compressor</div>
+            <div class="value" id="comp">--</div>
+        </div>
+    </div>
+
+    <div class="meta" id="meta">No reading received yet.</div>
+
+    <script>
+        const socket = new WebSocket(
+            (window.location.protocol === 'https:' ? 'wss://' : 'ws://') +
+            window.location.host + '/ws/dashboard/'
+        );
+
+        socket.onopen = () => console.log('WebSocket connected');
+        socket.onerror = (e) => console.error('WebSocket error', e);
+        socket.onclose = () => console.warn('WebSocket closed');
+
+        socket.onmessage = function (e) {
+            const d = JSON.parse(e.data);
+
+            document.getElementById('temp').innerText  = (d.internal_temp_c ?? 'ERR') + ' °C';
+            document.getElementById('pred').innerText  = (d.predicted_temp_30m ?? '--') + ' °C';
+            document.getElementById('power').innerText = d.power_status ? 'ON' : 'CUT';
+            document.getElementById('door').innerText  = d.door_open ? 'OPEN' : 'CLOSED';
+            document.getElementById('comp').innerText  = d.compressor_status ? 'RUNNING' : 'OFF';
+
+            const risk = (d.risk_level || 'SAFE').toUpperCase();
+            document.getElementById('risk').innerText = risk;
+            document.getElementById('risk').className = 'value risk-' + risk;
+
+            // Card colorings
+            document.getElementById('risk-card').className = 'card risk-' + risk.toLowerCase();
+
+            // Status banner
+            const banner = document.getElementById('status-banner');
+            if (risk === 'HIGH') {
+                banner.className = 'banner-high';
+                banner.innerText = '🚨 EXCURSION RISK — ACTION REQUIRED';
+            } else if (risk === 'MEDIUM') {
+                banner.className = 'banner-medium';
+                banner.innerText = '⚠️ WARNING — MONITOR CLOSELY';
+            } else {
+                banner.className = 'banner-safe';
+                banner.innerText = '✅ SYSTEM NORMAL';
+            }
+
+            document.getElementById('meta').innerText = 'Last reading: ' + (d.timestamp || 'now');
+        };
+    </script>
+</body>
+</html>
