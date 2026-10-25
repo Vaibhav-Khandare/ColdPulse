@@ -30,7 +30,23 @@ SECRET_KEY = 'django-insecure-+@mv0v3wo%$7*v_f8&-peeq3@ofikv=fj*w^#e13g!lxcfs9%b
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# ── Hosts allowed to reach this Django app ──
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "roseanne-definable-deservedly.ngrok-free.dev",   # ← your ngrok domain
+]
+
+# ── Origins allowed to POST (CSRF) ──
+CSRF_TRUSTED_ORIGINS = [
+    "https://roseanne-definable-deservedly.ngrok-free.dev",
+]
+
+# ── Trust ngrok's HTTPS termination ──
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# ── Tell Django to read Host from X-Forwarded-Host (ngrok sets it) ──
+USE_X_FORWARDED_HOST = True
 
 
 # Application definition

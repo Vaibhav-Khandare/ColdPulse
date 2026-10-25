@@ -1,6 +1,9 @@
 """
 ColdPulse — Food Cold Storage
 Digital Twin Control Center for Perishable Food Products
+
+NOTE: ML model has been REPLACED with a deterministic physics-informed
+      forecast (_compute_prediction). No .joblib is loaded anymore.
 """
 
 import requests
@@ -9,7 +12,6 @@ import tkinter as tk
 from tkinter import scrolledtext
 import numpy as np
 import pandas as pd
-import joblib
 import random
 import math
 from collections import deque, defaultdict
@@ -23,7 +25,6 @@ warnings.filterwarnings("ignore")
 # ═══════════════════════════════════════════════════════════
 #  CONFIGURATION
 # ═══════════════════════════════════════════════════════════
-MODEL_PATH   = "2v.joblib"
 THRESHOLD    = 8.0
 SETPOINT     = 4.0
 HISTORY_SIZE = 144
@@ -88,15 +89,6 @@ def send_to_django(payload):
         requests.post(DJANGO_API_URL, json=payload, timeout=0.5)
     except requests.exceptions.RequestException:
         pass
-
-
-try:
-    model = joblib.load(MODEL_PATH)
-    USE_REAL_MODEL = True
-    print(f"✅ Model loaded successfully from {MODEL_PATH}")
-except Exception as e:
-    USE_REAL_MODEL = False
-    print(f"⚠️ Could not load model. Using mock model. Error: {e}")
 
 
 # ═══════════════════════════════════════════════════════════
@@ -781,41 +773,86 @@ class DigitalTwinApp:
 
         self.root.after(1000, self.update_simulation)
 
+    # ══════════════════════════════════════════════════════════
+    #  HARD-CODED FORECAST (replaces ML model)
+    #
+    #  RULE-BASED 30-MIN FORECAST:
+    #    • Rising trend   → prediction > current (visibly higher)
+    #    • Falling trend  → prediction < current (visibly lower)
+    #    • Stable + safe  → prediction tracks cooling direction
+    #    • Stable + fault → prediction forced UP (power/door/defrost/load)
+    # ══════════════════════════════════════════════════════════
+    def _compute_prediction(self, features):
+        # Sensor fault: current temperature reading is unreliable
+        if self.sensor_fault:
+            return 4.0
+
+        base = float(self.internal_temp)
+
+        # Temperature change over the previous 10-minute step
+        trend = float(features.get("temp_diff_10m", 0.0))
+
+        if not math.isfinite(trend):
+            trend = 0.0
+
+        # Prevent unrealistic trend extrapolation
+        trend = max(-0.6, min(0.6, trend))
+
+        # Project the observed trend over 30 minutes
+        projected = trend * 3
+
+        # Account for storage operating conditions
+        if self.power_status == 0:
+            outage = max(0, self.step_count - self.power_cut_step)
+            projected += 0.20 * min(outage, 12)
+
+        if self.door_open:
+            door_steps = max(0, self.step_count - self.door_open_step)
+            projected += 0.30 * min(door_steps, 10)
+
+        if self.defrost_cycle:
+            projected += 0.40
+
+        if self.load_change > 5:
+            projected += min(1.0, self.load_change * 0.04)
+
+        # Minimum visible forecast change: 0.25°C
+        min_change = 0.25
+
+        # STRICT DIRECTION RULE
+        if trend > 0:
+            # Temperature is increasing: prediction MUST be higher.
+            projected = max(projected, min_change)
+
+        elif trend < 0:
+            # Temperature is decreasing: prediction MUST be lower.
+            projected = min(projected, -min_change)
+
+        else:
+            # Stable temperature: retain operating-condition logic.
+            if abs(projected) < min_change:
+                if (
+                    self.power_status == 0
+                    or self.door_open
+                    or self.defrost_cycle
+                    or self.load_change > 5
+                ):
+                    projected = min_change
+                elif self.compressor_status:
+                    projected = -min_change
+                else:
+                    projected = 0.15
+
+        # Calculate predicted temperature
+        pred = base + projected
+
+        # Keep the forecast within the simulation's physical bounds
+        pred = max(-5.0, min(40.0, pred))
+
+        return round(pred, 2)
+
     def make_prediction(self, features):
-        if USE_REAL_MODEL:
-            if hasattr(model, "feature_names_in_"):
-                feature_cols = model.feature_names_in_
-            elif hasattr(model, "feature_name_"):
-                feature_cols = model.feature_name_
-            else:
-                feature_cols = list(features.keys())
-        else:
-            feature_cols = [
-                'hour_of_day','day_of_week','internal_temp_c','ambient_temp_c',
-                'ambient_humidity_pct','solar_radiation_wm2','wind_speed_kmh',
-                'setpoint_temp_c','door_open','power_status','compressor_status',
-                'defrost_cycle','sensor_fault','load_change_kg','door_openings_planned',
-                'temp_diff_10m','temp_diff_30m','temp_rolling_mean_30m','temp_rolling_std_30m',
-                'internal_vs_setpoint_diff','power_outage_duration_min','time_since_power_cut_min',
-                'door_open_duration_min','time_since_door_closed_min','compressor_runtime_min',
-                'door_open_count_last_1h','compressor_runtime_min_last_1h'
-            ]
-        X = np.array([[float(features.get(col, np.nan)) for col in feature_cols]])
-
-        if USE_REAL_MODEL:
-            try: pred = model.predict(X)[0]
-            except Exception as e:
-                print(f"Model prediction error: {e}")
-                pred = self.internal_temp
-        else:
-            if self.sensor_fault: pred = 4.0
-            elif self.power_status == 0 or self.door_open or self.load_change > 0:
-                trend = features.get('temp_diff_10m', 0) or 0.1
-                pred = self.internal_temp + trend*4 + 0.5
-            else:
-                pred = self.internal_temp + features.get('temp_diff_10m', 0)*2
-
-        pred = round(float(pred), 2)
+        pred = self._compute_prediction(features)
         self.latest_prediction = pred
 
         if pred >= THRESHOLD:                 risk_level = "HIGH"
