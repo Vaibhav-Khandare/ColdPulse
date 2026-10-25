@@ -11,6 +11,11 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+
+# Load .env file
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -148,3 +153,23 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+
+# Email Configuration
+# config/settings.py
+
+# Email Configuration (Django 6.1+ MAILERS format)
+MAILERS = {
+    "default": {
+        "BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+        "OPTIONS": {
+            "host": "smtp.gmail.com",
+            "port": 587,
+            "use_tls": True,
+            "username": os.environ.get('EMAIL_HOST_USER'),
+            "password": os.environ.get('EMAIL_HOST_PASSWORD'),
+        },
+    },
+}
+
+DEFAULT_FROM_EMAIL = os.environ.get('EMAIL_HOST_USER')

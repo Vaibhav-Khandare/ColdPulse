@@ -1,58 +1,438 @@
-﻿<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>ColdPulse — Live Dashboard</title>
+﻿{% load static %}<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ColdPulse – Cold-Chain Monitoring Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
-body{font-family:'Segoe UI',sans-serif;background:#0f172a;color:#f8fafc;padding:30px;margin:0}
-h1{color:#38bdf8;margin-bottom:5px}
-.subtitle{color:#94a3b8;margin-bottom:20px}
-#status-banner{display:inline-block;padding:8px 18px;border-radius:6px;font-weight:bold;margin-bottom:25px;font-size:14px}
-.banner-safe{background:#064e3b;color:#34d399}
-.banner-medium{background:#451a03;color:#fbbf24}
-.banner-high{background:#450a0a;color:#f87171}
-.banner-waiting{background:#1e293b;color:#94a3b8}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;max-width:1200px}
-.card{background:#1e293b;border-radius:12px;padding:22px;border-left:4px solid #38bdf8}
-.label{color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1px}
-.value{font-size:32px;font-weight:bold;color:#38bdf8;margin-top:6px}
-.risk-SAFE{color:#10b981}.risk-MEDIUM{color:#f59e0b}.risk-HIGH{color:#ef4444}
-.meta{color:#64748b;font-size:12px;margin-top:25px}
-</style>
-</head>
-<body>
-<h1>ColdPulse Live Dashboard</h1>
-<div class="subtitle">Real-time cold chain monitoring · ROOM_01</div>
-<div id="status-banner" class="banner-waiting">Waiting for simulator data...</div>
-<div class="grid">
-<div class="card"><div class="label">Internal Temp</div><div class="value" id="temp">--</div></div>
-<div class="card"><div class="label">Predicted (30m)</div><div class="value" id="pred">--</div></div>
-<div class="card"><div class="label">Risk Level</div><div class="value" id="risk">--</div></div>
-<div class="card"><div class="label">Power</div><div class="value" id="power">--</div></div>
-<div class="card"><div class="label">Door</div><div class="value" id="door">--</div></div>
-<div class="card"><div class="label">Compressor</div><div class="value" id="comp">--</div></div>
+:root{--bg:#e2d7c5;--panel:#fbf8f2;--line:#b8a98f;--ink:#2d241d;--mute:#6a5b4d;--brand:#4a3226;--acc:#1f4e5f;--ok:#43702e;--hi:#b4510f;--rust:#9c3d27;--brown:#6e4332;--blush:#f1ddd2;--zs:#dbe8cf;--zm:#f5e7a6;--zh:#f2c9a5}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Segoe UI",system-ui,Arial,sans-serif}
+h1,h2,.big{font-family:Georgia,"Times New Roman",serif;margin:0}
+h2{font-size:1.4rem;margin-bottom:10px}p{margin:.4em 0}
+.top{background:var(--brand);color:#f7efe2;padding:14px 24px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between}
+.brand{display:flex;gap:12px;align-items:center}.brand h1{font-size:2rem}.brand small{display:block;opacity:.85}
+.bar{background:#d3c5ad;border-bottom:1px solid var(--line);padding:10px 24px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;font-size:.95rem}
+.bar b{font-weight:700}.bar .note{color:var(--mute);margin-left:auto}
+.wrap{max-width:1320px;margin:0 auto;padding:22px 20px 10px}
+.panel{background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--brand);box-shadow:0 1px 3px rgba(60,40,20,.18);padding:22px 26px;margin-bottom:22px}
+.seg{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font:inherit;font-weight:600;border:1px solid var(--line);background:#f3ece0;color:var(--ink);padding:.5em 1.1em;border-radius:3px;cursor:pointer}
+.btn:hover{background:#eadfcc}.btn[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#fff}
+.top .btn{background:#6a4a3a;border-color:#8a6a58;color:#fff}.top .btn[aria-pressed=true]{background:#f7efe2;color:var(--brand);border-color:#f7efe2}
+:focus-visible{outline:3px solid #d99a00;outline-offset:2px}
+.sub{color:var(--mute)}.tag{display:inline-block;border:1px solid var(--line);background:#efe6d5;padding:.1em .7em;font-size:.9rem;border-radius:3px;color:var(--mute)}
+.info{display:grid;grid-template-columns:1.2fr 1.5fr 1.3fr;gap:26px;align-items:start}
+.lims{display:flex;gap:14px;flex-wrap:wrap}.lim{border:1px solid var(--line);background:#f3ece0;padding:10px 18px;min-width:120px}
+.lim span{display:block;color:var(--mute);font-size:.9rem}.lim .big{font-size:2.3rem;line-height:1.1}
+.info ul{margin:6px 0 0;padding-left:20px}
+.g3{display:grid;grid-template-columns:1fr 1.8fr 1.3fr;gap:22px;margin-bottom:0}
+.g4{display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:22px}
+.huge{font-size:4.6rem;line-height:1;font-weight:700}.big{font-size:2.6rem;font-weight:700}
+.chip{display:inline-block;padding:.15em .7em;border-radius:3px;font-weight:700;font-size:.95rem}
+.c0{background:var(--ok);color:#fff}.c1{background:#f0c93d;color:#2d241d}.c2{background:var(--hi);color:#fff}
+.gauge{position:relative;margin:30px 0 40px}.gz{height:22px;border:1px solid var(--brand)}
+.mk{position:absolute;top:-8px;width:4px;height:38px;background:var(--brand);transform:translateX(-50%)}
+.gt{position:absolute;top:28px;font-size:.85rem;font-weight:600;transform:translateX(-50%);white-space:nowrap}
+dl.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 18px;margin:0}
+dl.kv dt{font-size:.88rem;color:var(--mute)}dl.kv dd{margin:0;font-weight:700;font-size:1.1rem}.bad{color:var(--rust)}
+.meter{height:12px;background:#e4dac8;border:1px solid var(--line);margin:4px 0}.meter i{display:block;height:100%;background:var(--acc)}
+.cw{position:relative;height:430px}.lg{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:12px;font-size:.92rem}
+.lg span::before{content:"";display:inline-block;width:18px;height:12px;margin-right:6px;vertical-align:-1px;border:1px solid #8a7a66;background:var(--c)}
+.dist{display:flex;height:34px;border:1px solid var(--brand);margin:8px 0 14px}.dist i{display:block;color:#fff;font:700 .85rem/32px sans-serif;text-align:center;overflow:hidden}
+.dist .z1{color:#2d241d}.dl{list-style:none;padding:0;margin:0}.dl li{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e2d8c6}
+.tw{overflow-x:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #e2d8c6}th{background:#efe6d5;border-bottom:2px solid var(--line)}
+.sm div{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-bottom:1px solid #e2d8c6}.sm b{font:700 1.5rem Georgia,serif}
+.wp{border:2px solid #5b2c1a;margin-bottom:22px;box-shadow:0 2px 4px rgba(60,40,20,.25)}
+.w1,.w2,.w3{padding:22px 28px}.w1{background:var(--rust);color:#fff}.s2 .w1{background:#7c281a}.w2{background:var(--brown);color:#fff}.w3{background:var(--blush);color:#3b1d12}
+.wh{display:flex;flex-wrap:wrap;gap:12px;align-items:center}.wh h2{margin:0}.wt{font:700 1.7rem Georgia,serif;margin:10px 0}
+.sevb{background:#fff;color:#7c281a;font-weight:700;padding:.15em .8em;border-radius:3px}
+.dot{display:inline-block;width:18px;height:18px;border-radius:50%;background:currentColor;color:#fff;flex:none}
+.pulse{animation:pl 1s ease-out 3}@keyframes pl{from{box-shadow:0 0 0 0 currentColor}to{box-shadow:0 0 0 16px transparent}}
+.fx{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:14px 0 0}.fx div{background:#82533f;padding:10px 14px;border-left:4px solid #e9c9b8}
+.fx dt{font-size:.9rem;opacity:.9}.fx dd{margin:0;font-size:1.15rem;font-weight:700}
+.acts{list-style:none;padding:0;margin:12px 0}.acts li{background:#fff8f3;border:1px solid #d5b3a2;margin-bottom:10px}
+.ck{display:flex;gap:16px;align-items:flex-start;padding:14px 16px;cursor:pointer;font-size:1.05rem}
+.ck input{width:30px;height:30px;flex:none;accent-color:var(--rust);cursor:pointer;margin:0}.ck small{display:block;font-size:.95rem;color:#5a3a2c}
+.strip{display:flex;flex-wrap:wrap;gap:14px;align-items:center;background:var(--blush);color:#3b1d12;border:2px solid #5b2c1a;border-left:10px solid var(--rust);padding:12px 20px;margin-bottom:22px}
+.strip .dot{color:var(--rust)}.strip .sevb{background:var(--rust);color:#fff}.strip .sd{flex:1;min-width:240px}
+.sr{position:absolute;left:-9999px}footer{max-width:1320px;margin:0 auto;padding:0 20px 28px;color:var(--mute);font-size:.9rem}
+@media(max-width:1100px){.g3,.info{grid-template-columns:1fr 1fr}.g3>:nth-child(2){grid-column:1/-1;order:-1}.g4{grid-template-columns:1fr}}
+@media(max-width:700px){.g3,.info{grid-template-columns:1fr}.huge{font-size:3.6rem}.cw{height:340px}.panel,.w1,.w2,.w3{padding:16px}.bar .note{margin-left:0}}
+@media(prefers-reduced-motion:reduce){.pulse{animation:none}}
+</style></head><body>
+<header class="top"><div class="brand"><img src="{% static 'images/coldpulse-logo.png' %}" alt="ColdPulse Logo" style="width: 48px; height: 48px; object-fit: contain; border-radius: 8px;"><div><h1>ColdPulse</h1><small>Monitor The Pulse of Cold · concept demonstration</small></div></div>
+<div class="seg" id="pSeg" role="group" aria-label="Storage profile"><button class="btn" data-p="pharma">Pharmaceuticals Cold Storage</button><button class="btn" data-p="food">Food Cold Storage</button></div>
+<div class="seg" id="soundSeg">
+    <button class="btn" id="enableSoundBtn">🔊 Enable Sound Alert</button>
+</div></header>
+
+<div class="sr" id="live" aria-live="polite"></div>
+<main class="wrap">
+<section class="panel info" aria-labelledby="stN"><div><h2 id="stN"></h2><p id="stD"></p><span class="tag">Backend-backed configuration</span></div>
+<div><div class="lims"><div class="lim"><span>Minimum</span><b class="big" id="lMin"></b></div><div class="lim"><span>Maximum</span><b class="big" id="lMax"></b></div><div class="lim"><span>Operating range</span><b class="big" id="lRng" style="font-size:1.6rem;line-height:2.1rem"></b></div></div></div>
+<div><b>Storage guidance</b><ul id="stG"></ul></div></section>
+<section id="warn" aria-label="Active warning" hidden></section>
+<div class="g3">
+<section class="panel" aria-labelledby="hT"><h2 id="hT">Current time</h2><div class="big" id="clock"></div><p class="sub" id="date"></p></section>
+<section class="panel" aria-labelledby="hC"><h2 id="hC">Current temperature</h2>
+<div style="display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center"><span class="huge" id="cur"></span><div><span class="chip" id="curS"></span><p id="curC" style="font-weight:600"></p></div></div>
+<div class="gauge" role="img" aria-label="Temperature gauge"><div class="gz" id="gz"></div><div class="mk" id="mk"></div><span class="gt" id="gMin"></span><span class="gt" id="gMax"></span></div>
+<dl class="kv"><div><dt>Ambient</dt><dd id="kA"></dd></div><div><dt>Door</dt><dd id="kD"></dd></div><div><dt>Power</dt><dd id="kP"></dd></div><div><dt>Compressor</dt><dd id="kC"></dd></div><div><dt>Last updated</dt><dd id="kU"></dd></div></dl></section>
+<section class="panel" aria-labelledby="hF"><h2 id="hF">Predicted temperature</h2><div class="seg" id="fSeg" role="group" aria-label="Forecast horizon"><button class="btn" data-h="15">15m</button><button class="btn" data-h="30">30m</button><button class="btn" data-h="60">1h</button></div>
+<div class="huge" id="fV" style="margin-top:16px"></div><p id="fH" class="sub"></p><p><span class="chip" id="fS"></span> <b id="fD"></b> from current</p>
+<p style="margin-top:14px">Forecast confidence: <b id="fCf"></b></p><div class="meter"><i id="fM"></i></div><p class="sub">Server-derived forecast</p></section>
 </div>
-<div class="meta" id="meta">No reading received yet.</div>
+<section class="panel" aria-labelledby="hG"><div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center"><h2 id="hG">Temperature trend</h2><div class="seg" id="gSeg" role="group" aria-label="Graph window"><button class="btn" data-w="15">15m</button><button class="btn" data-w="30">30m</button><button class="btn" data-w="60">1h</button></div></div>
+<div class="cw"><canvas id="cv" aria-label="Temperature trend line chart with risk zones" role="img"></canvas></div>
+<div class="lg"><span style="--c:#1f4e5f">Temperature</span><span style="--c:var(--zs)">Safe</span><span style="--c:var(--zm)">Medium risk</span><span style="--c:var(--zh)">High risk</span><span style="--c:#5b2c1a">Min / max limit (dashed)</span></div></section>
+<div class="g4">
+<section class="panel" aria-labelledby="hD"><h2 id="hD">Risk distribution</h2><p class="sub wn"></p><div class="dist" id="dBar" role="img"></div><ul class="dl" id="dL"></ul></section>
+<section class="panel" aria-labelledby="hR"><h2 id="hR">Recent temperature readings</h2><p class="sub wn"></p><div class="tw"><table><thead><tr><th>Time</th><th>Temperature</th><th>Status</th></tr></thead><tbody id="tb"></tbody></table></div></section>
+<section class="panel" aria-labelledby="hS"><h2 id="hS">Operating summary</h2><p class="sub wn"></p><div class="sm" id="sm"></div></section>
+</div></main>
+<footer>ColdPulse · Live data is polled from the backend every 5 s. Forecasts and risk levels are illustrative and must be validated before real-world use.</footer>
+
 <script>
-const socket=new WebSocket((window.location.protocol==='https:'?'wss://':'ws://')+window.location.host+'/ws/dashboard/');
-socket.onopen=()=>console.log('WebSocket connected');
-socket.onclose=()=>console.warn('WebSocket closed');
-socket.onmessage=function(e){
-  const d=JSON.parse(e.data);
-  document.getElementById('temp').innerText=(d.internal_temp_c??'ERR')+' °C';
-  document.getElementById('pred').innerText=(d.predicted_temp_30m??'--')+' °C';
-  document.getElementById('power').innerText=d.power_status?'ON':'CUT';
-  document.getElementById('door').innerText=d.door_open?'OPEN':'CLOSED';
-  document.getElementById('comp').innerText=d.compressor_status?'RUNNING':'OFF';
-  const risk=(d.risk_level||'SAFE').toUpperCase();
-  document.getElementById('risk').innerText=risk;
-  document.getElementById('risk').className='value risk-'+risk;
-  const b=document.getElementById('status-banner');
-  if(risk==='HIGH'){b.className='banner-high';b.innerText='🚨 EXCURSION RISK — ACTION REQUIRED';}
-  else if(risk==='MEDIUM'){b.className='banner-medium';b.innerText='⚠️ WARNING — MONITOR CLOSELY';}
-  else{b.className='banner-safe';b.innerText='✅ SYSTEM NORMAL';}
-  document.getElementById('meta').innerText='Last reading: '+(d.timestamp||'now');
+window.COLDPULSE_INIT = {
+  // ── Both profiles' initial snapshots, keyed by profile name ──
+  profiles: {
+    pharma: {
+      unit_name:          "{{ initial_pharma.unit_name|default:'PHARMA_01'|escapejs }}",
+      internal_temp_c:    {{ initial_pharma.internal_temp_c|default:"null" }},
+      predicted_temp_30m: {{ initial_pharma.predicted_temp_30m|default:"null" }},
+      risk_level:         "{{ initial_pharma.risk_level|default:'SAFE'|escapejs }}",
+      power_status:       {% if initial_pharma.power_status %}true{% else %}false{% endif %},
+      door_open:          {% if initial_pharma.door_open %}true{% else %}false{% endif %},
+      compressor_status:  {% if initial_pharma.compressor_status %}true{% else %}false{% endif %},
+      ambient_temp_c:     {{ initial_pharma.ambient_temp_c|default:"29.0" }},
+      timestamp:          "{{ initial_pharma.timestamp|default:''|escapejs }}"
+    },
+    food: {
+      unit_name:          "{{ initial_food.unit_name|default:'FOOD_01'|escapejs }}",
+      internal_temp_c:    {{ initial_food.internal_temp_c|default:"null" }},
+      predicted_temp_30m: {{ initial_food.predicted_temp_30m|default:"null" }},
+      risk_level:         "{{ initial_food.risk_level|default:'SAFE'|escapejs }}",
+      power_status:       {% if initial_food.power_status %}true{% else %}false{% endif %},
+      door_open:          {% if initial_food.door_open %}true{% else %}false{% endif %},
+      compressor_status:  {% if initial_food.compressor_status %}true{% else %}false{% endif %},
+      ambient_temp_c:     {{ initial_food.ambient_temp_c|default:"29.0" }},
+      timestamp:          "{{ initial_food.timestamp|default:''|escapejs }}"
+    }
+  },
+  api_url: "{% url 'api-live' %}"
 };
 </script>
-</body>
-</html>
+
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],f1=v=>v.toFixed(1);
+const hm=d=>d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches,RL=['Safe','Medium risk','High risk'];
+const P={pharma:{n:'Pharmaceuticals Cold Storage',d:'Walk-in cold room for vaccines, biologics and temperature-sensitive medicines.',min:2,max:8,set:5,m:1,
+g:['Keep vaccines and biologics between 2 °C and 8 °C.','Never let stock freeze or sit against the cooling unit.','Record every excursion for quality review.'],
+xm:'Flag affected batches|Mark them for quality review. Do not release them yet.',xh:'Quarantine affected batches|Hold all stock until a quality assessment is complete.'},
+food:{n:'Food Cold Storage',d:'Chilled room for dairy, produce, meat and prepared foods.',min:0,max:5,set:2.5,m:1,
+g:['Hold perishable food between 0 °C and 5 °C.','Limit door-open time and rotate stock first in, first out.','Record every excursion in the food-safety log.'],
+xm:'Flag affected items|Mark them for a food-safety check before use.',xh:'Hold affected items|Do not sell or serve them until food safety has assessed them.'}};
+
+// ── Build a `live` snapshot from a cached profile in COLDPULSE_INIT ──
+function initFor(profile){
+  const p = (window.COLDPULSE_INIT.profiles || {})[profile] || {};
+  return {
+    unit_name:          p.unit_name || (profile === 'food' ? 'FOOD_01' : 'PHARMA_01'),
+    internal_temp_c:    p.internal_temp_c ?? null,
+    predicted_temp_30m: p.predicted_temp_30m ?? null,
+    predicted_temp_15m: null,
+    predicted_temp_60m: null,
+    risk_level:         (p.risk_level || 'SAFE').toUpperCase(),
+    power_status:       !!p.power_status,
+    door_open:          !!p.door_open,
+    compressor_status:  !!p.compressor_status,
+    ambient_temp_c:     p.ambient_temp_c ?? 29.0,
+    timestamp:          p.timestamp || '',
+    connected:          p.internal_temp_c != null,
+  };
+}
+
+// Default profile: pharma (matches the first profile button being pressed on load)
+const live = initFor('pharma');
+
+// ---------- Audio ----------
+let audioCtx = null;
+let beepInterval = null;
+
+document.getElementById('enableSoundBtn').addEventListener('click', () => {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    document.getElementById('enableSoundBtn').style.display = 'none';
+});
+
+function playBeep() {
+    if (!audioCtx || audioCtx.state !== 'running') return;
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+    gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime); 
+    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.4);
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.4);
+}
+
+function updateBeepState(isCritical) {
+    if (isCritical && !beepInterval) {
+        playBeep();
+        beepInterval = setInterval(playBeep, 2000);
+    } else if (!isCritical && beepInterval) {
+        clearInterval(beepInterval);
+        beepInterval = null;
+    }
+}
+// ------------------------------------------
+
+const S={p:'pharma',fh:15,gw:15},W={};let D=[],ch=null,lastK=null,lastSev=0;
+const T0=new Date();T0.setSeconds(0,0);
+
+const RISK_CODE={SAFE:0,'MEDIUM RISK':1,MEDIUM:1,HIGH:2,'HIGH RISK':2};
+const rkServer=()=>RISK_CODE[live.risk_level] ?? 0;
+const rk=(v,p)=>v>=p.min&&v<=p.max?0:(v<p.min?p.min-v:v-p.max)<=p.m+1e-9?1:2;
+const cond=(v,p)=>v>p.max?f1(v-p.max)+' °C above maximum':v<p.min?f1(p.min-v)+' °C below minimum':'Within operating range';
+
+function series(){
+  const p=P[S.p];
+  const now=live.internal_temp_c;
+  if(now==null) return [];
+  const hours=60;
+  return Array.from({length:hours},(_,k)=>{
+    const m=hours-1-k;
+    const wobble=0.05*Math.sin(m*1.3)+0.03*Math.sin(m*0.4);
+    const taper=(now-p.set)*Math.exp(-m/25);
+    return {t:new Date(Date.now()-m*6e4),v:+(p.set+taper+wobble).toFixed(1)};
+  });
+}
+
+function forecastFor(h){
+  const p=P[S.p],cur=live.internal_temp_c;
+  if(cur==null) return null;
+  const delta30=(live.predicted_temp_30m!=null?live.predicted_temp_30m-cur:0);
+  if(h===30 && live.predicted_temp_30m!=null) return +live.predicted_temp_30m.toFixed(1);
+  if(h===15 && live.predicted_temp_15m!=null) return +live.predicted_temp_15m.toFixed(1);
+  if(h===60 && live.predicted_temp_60m!=null) return +live.predicted_temp_60m.toFixed(1);
+  return +(cur+delta30*(h/30)).toFixed(1);
+}
+
+const chip=r=>`<span class="chip c${r}">${RL[r]}</span>`;
+
+function renderInfo(){const p=P[S.p];$('#stN').textContent=p.n;$('#stD').textContent=p.d;$('#lMin').textContent=f1(p.min)+' °C';$('#lMax').textContent=f1(p.max)+' °C';$('#lRng').textContent=f1(p.min)+' to '+f1(p.max)+' °C';$('#stG').innerHTML=p.g.map(x=>`<li>${x}</li>`).join('')}
+
+function renderNow(){
+  const p=P[S.p],c=D.length?D[D.length-1]:null;
+  if(!c||live.internal_temp_c==null){
+    $('#cur').textContent='-- °C';
+    $('#curS').className='chip c0';$('#curS').textContent='Waiting for data';
+    $('#curC').textContent='No reading received yet.';
+    $('#kA').textContent=f1(live.ambient_temp_c??29)+' °C';
+    $('#kD').textContent=live.door_open?'OPEN':'Closed';$('#kD').className=live.door_open?'bad':'';
+    $('#kP').textContent=live.power_status?'Mains supply normal':'Supply interrupted';$('#kP').className=live.power_status?'':'bad';
+    $('#kC').textContent=live.compressor_status?'Running':'Stopped';$('#kC').className=live.compressor_status?'':'bad';
+    $('#kU').textContent='—';
+    return;
+  }
+  const r=rkServer();
+  $('#cur').textContent=f1(c.v)+' °C';
+  $('#curS').className='chip c'+r;$('#curS').textContent=RL[r];$('#curC').textContent=cond(c.v,p);
+  const lo=p.min-p.m-1.5,hi=p.max+p.m+3,pc=x=>Math.max(0,Math.min(100,(x-lo)/(hi-lo)*100)).toFixed(2)+'%';
+  $('#gz').style.background=`linear-gradient(90deg,var(--zh) 0 ${pc(p.min-p.m)},var(--zm) 0 ${pc(p.min)},var(--zs) 0 ${pc(p.max)},var(--zm) 0 ${pc(p.max+p.m)},var(--zh) 0)`;
+  $('#mk').style.left=pc(c.v);$('#gMin').style.left=pc(p.min);$('#gMin').textContent='Min '+f1(p.min);$('#gMax').style.left=pc(p.max);$('#gMax').textContent='Max '+f1(p.max);
+  $('#kA').textContent=f1(live.ambient_temp_c??29)+' °C';
+  $('#kD').textContent=live.door_open?'OPEN':'Closed';$('#kD').className=live.door_open?'bad':'';
+  $('#kP').textContent=live.power_status?'Mains supply normal':'Supply interrupted';$('#kP').className=live.power_status?'':'bad';
+  $('#kC').textContent=live.compressor_status?'Running':'Stopped';$('#kC').className=live.compressor_status?'':'bad';
+  $('#kU').textContent = live.timestamp ? new Date(live.timestamp).toLocaleTimeString() : hm(c.t);
+}
+
+function renderFc(){
+  const p=P[S.p],h=S.fh,v=forecastFor(h);
+  if(v==null){
+    $('#fV').textContent='-- °C';$('#fH').textContent='Awaiting forecast';
+    $('#fS').className='chip c0';$('#fS').textContent='—';$('#fD').textContent='—';
+    $('#fCf').textContent='—';$('#fM').style.width='0%';
+    return;
+  }
+  const cur=live.internal_temp_c??D[D.length-1].v;
+  const d=v-cur,r=RISK_CODE[live.risk_level]??rk(v,p);
+  const cf = r===0?92:r===1?78:72;
+  $('#fV').textContent=f1(v)+' °C';
+  $('#fH').textContent='Forecast for '+(h===60?'1 hour':h+' minutes')+' ahead';
+  $('#fS').className='chip c'+r;$('#fS').textContent=RL[r];
+  $('#fD').textContent=(d>=0?'+':'')+f1(d)+' °C';
+  $('#fCf').textContent=cf+'% ('+(cf>=85?'high':cf>=70?'moderate':'lower')+')';
+  $('#fM').style.width=cf+'%';
+}
+
+const zones=p=>[[-99,p.min-p.m,'#f2c9a5'],[p.min-p.m,p.min,'#f5e7a6'],[p.min,p.max,'#dbe8cf'],[p.max,p.max+p.m,'#f5e7a6'],[p.max+p.m,99,'#f2c9a5']];
+const plug={id:'zones',beforeDraw(c){const p=P[S.p],x=c.ctx,a=c.chartArea,y=c.scales.y,Y=v=>y.getPixelForValue(v);
+x.save();x.beginPath();x.rect(a.left,a.top,a.right-a.left,a.bottom-a.top);x.clip();
+zones(p).forEach(([l,h,col])=>{const t=Y(Math.min(h,y.max)),b=Y(Math.max(l,y.min));x.fillStyle=col;x.fillRect(a.left,t,a.right-a.left,b-t)});
+x.setLineDash([7,4]);x.strokeStyle=x.fillStyle='#5b2c1a';x.lineWidth=2;x.font='600 12px Segoe UI,Arial';
+[[p.max,'Max '],[p.min,'Min ']].forEach(([v,l])=>{x.beginPath();x.moveTo(a.left,Y(v));x.lineTo(a.right,Y(v));x.stroke();x.fillText(l+f1(v)+' °C',a.left+8,Y(v)-5)});x.restore()}};
+
+function renderChart(){
+  const cv=$('#cv');
+  if(typeof Chart==='undefined'){cv.parentNode.innerHTML='<p class="bad"><b>The chart library could not load.</b> Connect to the internet so the Chart.js CDN script can load, then reload the page.</p>';return}
+  const p=P[S.p],w=D.slice(-S.gw),v=w.map(r=>r.v);
+  if(v.length===0){ if(ch){ch.destroy();ch=null;} return; }
+  const lo=Math.min(p.min-p.m-.5,Math.min(...v)-.3),hi=Math.max(p.max+p.m+.5,Math.max(...v)+.3),pr=S.gw===15?5:S.gw===30?3.5:2.5;
+  if(!ch){ch=new Chart(cv,{type:'line',data:{labels:[],datasets:[{data:[],borderColor:'#1f4e5f',backgroundColor:'#1f4e5f',borderWidth:3,tension:0,pointBorderColor:'#fff',pointBorderWidth:1.5,pointHoverRadius:8}]},
+  options:{maintainAspectRatio:false,animation:{duration:RM?0:250},interaction:{mode:'index',intersect:false},
+  plugins:{legend:{display:false},tooltip:{displayColors:false,padding:12,titleFont:{size:14},bodyFont:{size:14},callbacks:{title:i=>D.slice(-S.gw)[i[0].dataIndex].t.toLocaleTimeString(),label:i=>'Temperature: '+f1(i.parsed.y)+' °C',afterLabel:i=>'Risk status: '+RL[rk(i.parsed.y,P[S.p])]}}},
+  scales:{x:{title:{display:true,text:'Time (local)',color:'#4a3a2e'},ticks:{maxTicksLimit:8,color:'#4a3a2e'},grid:{color:'rgba(60,40,20,.2)'}},y:{title:{display:true,text:'Temperature (°C)',color:'#4a3a2e'},ticks:{color:'#4a3a2e'},grid:{color:'rgba(60,40,20,.2)'}}}},plugins:[plug]})}
+  ch.data.labels=w.map(r=>hm(r.t));const ds=ch.data.datasets[0];ds.data=v;ds.pointRadius=pr;ds.pointBackgroundColor='#1f4e5f';
+  ch.options.scales.y.min=lo;ch.options.scales.y.max=hi;ch.update();
+}
+
+function renderStats(){
+  const p=P[S.p],w=D.slice(-S.gw),n=w.length;
+  if(n===0){
+    $$('.wn').forEach(e=>e.textContent='No readings received yet.');
+    $('#dBar').innerHTML='';$('#dL').innerHTML='';$('#tb').innerHTML='';$('#sm').innerHTML='';
+    return;
+  }
+  const c=[0,0,0],v=w.map(r=>r.v);
+  w.forEach(r=>c[rkServer()]++);
+  c[0]=c[1]=c[2]=0; w.forEach(r=>c[rk(r.v,p)]++);
+  $$('.wn').forEach(e=>e.textContent='Last '+(S.gw===60?'1 hour':S.gw+' minutes')+' · '+n+' readings · live data');
+  $('#dBar').setAttribute('aria-label',RL.map((l,i)=>l+' '+c[i]).join(', '));
+  $('#dBar').innerHTML=c.map((x,i)=>x?`<i class="c${i} z${i}" style="width:${x/n*100}%">${x/n>.1?Math.round(x/n*100)+'%':''}</i>`:'').join('');
+  $('#dL').innerHTML=c.map((x,i)=>`<li><span>${chip(i)}</span><span><b>${x}</b> readings (${Math.round(x/n*100)}%)</span></li>`).join('');
+  $('#tb').innerHTML=w.slice(-8).reverse().map(r=>`<tr><td>${hm(r.t)}</td><td><b>${f1(r.v)} °C</b></td><td>${chip(rk(r.v,p))}</td></tr>`).join('');
+  const row=(l,x)=>`<div><span>${l}</span><b>${x}</b></div>`;
+  $('#sm').innerHTML=row('Average temperature',f1(v.reduce((a,b)=>a+b,0)/n)+' °C')+row('Highest recorded',f1(Math.max(...v))+' °C')+row('Lowest recorded',f1(Math.min(...v))+' °C')+row('Readings within range',Math.round(c[0]/n*100)+'%')+row('Out-of-range readings',n-c[0]+' of '+n);
+}
+
+const acts=()=>SC_ACTS();
+let SC_ACTS=()=>[];
+function pulse(){const d=$('#warn .dot');if(!d)return;d.classList.remove('pulse');void d.offsetWidth;d.classList.add('pulse')}
+
+function renderWarn(){
+  const r=RISK_CODE[live.risk_level]??0;
+  const el=$('#warn');
+  if(r===0 || live.internal_temp_c==null){el.hidden=true;el.innerHTML='';lastK=null;lastSev=0;return}
+  const p=P[S.p];
+  const sev=r===2?2:1;
+  const title = sev===2 ? 'Temperature excursion: storage is outside its safe range'
+                        : 'Temperature is drifting out of range';
+  const why   = sev===2 ? (live.power_status?'Loss of power has stopped the compressor, so the room can no longer remove heat.':'Compressor fault or sustained door-open event is letting the room warm.')
+                        : (live.door_open?'An open door is letting warm air in while the compressor works at full load.':'Temperature is trending toward the limit; monitor closely.');
+  const ex    = sev===2 ? 'The reading is beyond the operating range. The forecast shows continued risk unless the cause is removed.'
+                        : 'The room has drifted toward the operating limit. The forecast stays outside the safe range unless the cause is removed.';
+  const baseActs = sev===2
+    ? ['Restore power|Confirm supply status and switch to backup power if available.','Keep the door closed|Retain the remaining cold air.','Alert maintenance and the facility manager|Escalate immediately.','Prepare backup storage|Get a standby cold room or insulated carriers ready.']
+    : ['Close the door|Confirm the seal is fully engaged and the latch holds.','Pause loading and unloading|Stop door traffic until the reading stabilises.','Inspect the cooling unit|Check the compressor and fans for faults.','Notify the shift supervisor|Report the excursion and the forecast.'];
+  const extraAct = sev===2 ? P[S.p].xh : P[S.p].xm;
+  const A = baseActs.concat([extraAct]);
+  const k = S.p+':'+live.risk_level;
+  const st = W[k]||(W[k]={d:new Set(),o:true});
+  const all = st.d.size===A.length;
+  const c = live.internal_temp_c;
+
+  if(!st.o){
+    el.innerHTML=`<div class="strip"><span class="dot"></span><span class="sevb">${RL[r]}</span><span class="sd"><b>${title}.</b> All ${A.length} actions checked. The temperature is not confirmed safe.</span><button class="btn" id="exp" aria-expanded="false">Show details</button></div>`;
+  } else {
+    const li=A.map((x,i)=>{const[t,d]=x.split('|');return `<li><label class="ck"><input type="checkbox" data-i="${i}"${st.d.has(i)?' checked':''}><span><b>${t}</b><small>${d}</small></span></label></li>`}).join('');
+    const fx=[['Door',live.door_open?['Open',1]:['Closed',0]],['Power',live.power_status?['Mains supply normal',0]:['Supply interrupted',1]],['Compressor',live.compressor_status?['Running',0]:['Stopped, no cooling',1]],['Ambient',[f1(live.ambient_temp_c??29)+' °C',(live.ambient_temp_c??29)>30]]].map(([l,x])=>`<div><dt>${l}</dt><dd>${x[1]?'⚠ ':''}${x[0]}</dd></div>`).join('');
+    el.innerHTML=`<div class="wp s${sev}" role="region" aria-label="Warning details">
+<div class="w1"><div class="wh"><span class="dot"></span><h2>Warning: what's happening</h2><span class="sevb">${RL[r]}</span></div><p class="wt">${title}</p>
+<p><b>Current condition:</b> ${f1(c)} °C. ${cond(c,p)} (${RL[r]}).</p><p><b>Forecast:</b> 15 min ${f1(forecastFor(15))} °C · 30 min ${f1(forecastFor(30))} °C · 1 h ${f1(forecastFor(60))} °C</p><p>${ex}</p></div>
+<div class="w2"><h2>Why is this happening?</h2><p>${why}</p><dl class="fx">${fx}</dl></div>
+<div class="w3"><h2>What to do now</h2><p id="prog"><b>${st.d.size} of ${A.length}</b> actions checked</p><ul class="acts">${li}</ul>
+<p><b>Note:</b> Checking an action only records that it was done. It does not confirm the temperature is back in the safe range. Verify the live reading.</p>${all?'<button class="btn" id="coll">Collapse warning</button>':''}</div></div>`;
+  }
+  el.hidden=false;
+  if(k!==lastK||sev>lastSev)pulse();
+  lastK=k;lastSev=sev;
+}
+
+$('#warn').addEventListener('change',e=>{
+  if(e.target.type!=='checkbox')return;
+  const r=RISK_CODE[live.risk_level]??0;
+  const sev=r===2?2:1;
+  const baseLen=4;
+  const k=S.p+':'+live.risk_level;
+  const st=W[k];
+  if(!st) return;
+  const total=baseLen+1;
+  const i=+e.target.dataset.i;
+  e.target.checked?st.d.add(i):st.d.delete(i);
+  $('#prog').innerHTML=`<b>${st.d.size} of ${total}</b> actions checked`;
+  if(st.d.size===total){st.o=false;renderWarn();$('#exp')?.focus();$('#live').textContent='All actions checked. Warning collapsed. Temperature is not confirmed safe.'}
+});
+$('#warn').addEventListener('click',e=>{
+  const k=S.p+':'+live.risk_level;
+  const st=W[k];
+  if(!st) return;
+  if(e.target.id==='exp'){st.o=true;renderWarn();$('#warn input')?.focus()}
+  else if(e.target.id==='coll'){st.o=false;renderWarn();$('#exp')?.focus()}
+});
+
+function renderAll(){
+  D=series();
+  renderInfo();renderNow();renderFc();renderChart();renderStats();renderWarn();
+  $$('#pSeg .btn').forEach(b=>b.setAttribute('aria-pressed',b.dataset.p===S.p));
+  $$('#fSeg .btn').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.h===S.fh));
+  $$('#gSeg .btn').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.w===S.gw));
+}
+
+async function refreshFromServer(){
+  try{
+    // Ask the backend for the current profile's room only
+    const url = window.COLDPULSE_INIT.api_url + '?profile=' + encodeURIComponent(S.p);
+    const r = await fetch(url,{cache:'no-store',headers:{'Accept':'application/json'}});
+    if(!r.ok) return;
+    const d = await r.json();
+
+    // Beep scoped to whichever room is currently on screen
+    const currentTemp = d.internal_temp_c;
+    if (currentTemp !== null && currentTemp !== undefined) {
+        updateBeepState(currentTemp > 7.0);
+    }
+
+    live.unit_name        = d.unit_name ?? live.unit_name;
+    live.internal_temp_c  = d.internal_temp_c;
+    live.predicted_temp_30m = d.predicted_temp_30m;
+    live.predicted_temp_15m = d.predicted_temp_15m;
+    live.predicted_temp_60m = d.predicted_temp_60m;
+    live.risk_level       = (d.risk_level || 'SAFE').toUpperCase();
+    live.power_status     = !!d.power_status;
+    live.door_open        = !!d.door_open;
+    live.compressor_status= !!d.compressor_status;
+    live.ambient_temp_c   = d.ambient_temp_c ?? live.ambient_temp_c;
+    live.timestamp        = d.timestamp || new Date().toISOString();
+    live.connected        = true;
+    renderAll();
+  }catch(err){ console.warn('Live API unavailable:',err); }
+}
+
+// ── Profile switch: swap data to the selected room, then re-poll it ──
+$('#pSeg').onclick = e => {
+  const b = e.target.closest('[data-p]');
+  if(!b || b.dataset.p === S.p) return;
+  S.p = b.dataset.p;
+  Object.assign(live, initFor(S.p));   // instantly show cached snapshot for the new room
+  renderAll();
+  refreshFromServer();                  // then fetch freshest reading for the new room
+};
+
+$('#fSeg').onclick=e=>{const b=e.target.closest('[data-h]');if(b){S.fh=+b.dataset.h;renderFc();$$('#fSeg .btn').forEach(x=>x.setAttribute('aria-pressed',x===b))}};
+$('#gSeg').onclick=e=>{const b=e.target.closest('[data-w]');if(b){S.gw=+b.dataset.w;renderChart();renderStats();$$('#gSeg .btn').forEach(x=>x.setAttribute('aria-pressed',x===b))}};
+
+function tick(){const d=new Date();$('#clock').textContent=d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});$('#date').textContent=d.toLocaleDateString([],{weekday:'long',day:'numeric',month:'long',year:'numeric'})}
+tick();setInterval(tick,1000);
+renderAll();
+refreshFromServer();
+setInterval(refreshFromServer,5000);
+</script></body></html>

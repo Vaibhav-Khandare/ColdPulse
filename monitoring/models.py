@@ -11,6 +11,7 @@ class TemperatureReading(models.Model):
     compressor_status = models.BooleanField(default=True)
     predicted_temp_30m = models.FloatField(null=True, blank=True)
     risk_level = models.CharField(max_length=20, default="SAFE")
+    alert_sent = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.room_id} at {self.internal_temp_c}°C ({self.timestamp.strftime('%H:%M:%S')})"
